@@ -35,7 +35,7 @@ begin : state_actions
 	 
     /*********************** Actions for each state *********************************************/
 	 unique case(state)
-		fetch1: begin
+		s_hit: begin
 			/* MAR <= PC */
 			marmux_sel = 2'b01;
 			load_mar = 1;
