@@ -8,6 +8,9 @@ module cache_control
 (
     /* Input and output port declarations */
 	 input clk,
+	 input is_hit_out, hit_sel_out,
+	 input Dout_Dirty0, Dout_Dirty1,
+	 input Dout_Valid0, Dout_Valid1,
 	 
 	 /* Cache Datapath controls */
 	 output logic [1:0] w_Data, w_Tag, w_Valid, w_Dirty
@@ -36,13 +39,7 @@ begin : state_actions
     /*********************** Actions for each state *********************************************/
 	 unique case(state)
 		s_hit: begin
-			/* MAR <= PC */
-			marmux_sel = 2'b01;
-			load_mar = 1;
 			
-			/* PC <= PC + 2 */
-			pcmux_sel = 2'b00;	// AW mp2.1 modified
-			load_pc = 1;
 		end
 		
 		fetch2: begin

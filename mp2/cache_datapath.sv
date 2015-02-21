@@ -20,18 +20,20 @@ module cache_datapath
 	 input logic pmem_resp,
 	 output lc3b_word pmem_address,
 	 output lc3b_line pmem_wdata,
-	 output logic pmem_read,
-	 output logic pmem_write,
+	 output logic pmem_read, pmem_write,
+	 output logic is_hit_out, hit_sel_out,
+	 output logic Dout_Dirty0, Dout_Dirty1,
+	 output logic Dout_Valid0, Dout_Valid1
 	 
 );
 
 /* declare internal signals */
 lc3b_line Din_Data, Dout_Data0, Dout_Data1;		// 2.2 data input and output for Data arrays
 lc3b_tag Din_Tag, Dout_Tag0, Dout_Tag1;			// 2.2 data input and output for Tag arrays
-logic Din_Valid, Dout_Valid0, Dout_Valid1;		/* 2.2 data input and output for Valid arrays; 1 means valid, 0 means no; both arrays can share same
+logic Din_Valid;								/* 2.2 data input for Valid arrays; 1 means valid, 0 means no; both arrays can share same
 												 * data input b/c we have 2 write bits, allowing us to choose which array to write to
 												 */
-logic Din_Dirty, Dout_Dirty0, Dout_Dirty1;		// 2.2 data input and output for Dirty arrays; 1 means dirty, 0 means no; again, can share data input
+logic Din_Dirty;							// 2.2 data input for Dirty arrays; 1 means dirty, 0 means no; again, can share data input
 logic Din_LRU, Dout_LRU;						// 2.2 data input and output for LRU array; 1 means array_1 is LRU, 0 means array_0 is LRU
 lc3b_c_index c_index;							// 2.2 the index into the cache
 
@@ -53,7 +55,11 @@ addrToTag addr_to_tag
 // check_hit
 checkHit check_hit
 (
-	
+	.tag0(Dout_Tag0),
+	.tag1(Dout_Tag1),
+	.tag_gold(Din_Tag),
+	.is_hit(is_hit_out),
+	.hit_sel(hit_sel_out)
 );
 
 // data_0 Array
