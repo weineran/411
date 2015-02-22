@@ -1,6 +1,6 @@
 import lc3b_types::*;
 
-module mp2
+module cpu
 (
     input clk,
 
@@ -106,4 +106,4 @@ control the_control
 	.mem_byte_enable(mem_byte_enable)
 );
 
-endmodule : mp2
+endmodule : cpu

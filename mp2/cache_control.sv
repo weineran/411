@@ -8,15 +8,16 @@ module cache_control
 (
     /* Input and output port declarations */
 	 input clk,
-	 input is_hit_out, hit_sel_out,
-	 input Dout_Dirty0, Dout_Dirty1,
-	 input Dout_Valid0, Dout_Valid1,
+	 input is_hit_out, hit_sel_out
+	 input dirty_out, valid_out,
 	 
 	 /* Cache Datapath controls */
-	 output logic [1:0] w_Data, w_Tag, w_Valid, w_Dirty
+	 output logic [1:0] w_Data, w_Tag, w_Valid, w_Dirty,
+
 	 
 	 /* Memory signals */
-	 
+	 input logic mem_read, mem_write,
+	 output mem_resp, pmem_read, pmem_write, cache_write
 );
 
 enum int unsigned {
@@ -35,312 +36,47 @@ begin : state_actions
 	 w_Tag = 2'b00;
 	 w_Valid = 2'b00;
 	 w_Dirty = 2'b00;
+	 mem_resp = 1'b0;
+	 pmem_write = 1'b0;
+	 pmem_read = 1'b0;
+	 cache_write = 1'b0;
 	 
     /*********************** Actions for each state *********************************************/
 	 unique case(state)
 		s_hit: begin
-			
+			if(is_hit_out == 0)
+			begin
+				if(dirty_out == 0 || valid_out == 0)
+				begin
+					;	// replace
+				end
+				else if(dirty_out == 1 && valid_out == 1)
+				begin
+					;	// write_back
+				end
+			end
+			else
+			begin
+				if(mem_read == 1)
+				begin
+					mem_resp = 1;		// hit = 1; mem_read =1; send data to cpu
+				end
+				else if(mem_write == 1)
+				begin
+					;	// write data, valid, dirty
+				end
+			end
 		end
 		
-		fetch2: begin
-			/* Read memory */
-			mem_read = 1;
-			mdrmux_sel = 2'b01;
-			load_mdr = 1;
+		s_write_back: begin
+			pmem_write = 1;
 		end
 		
-		fetch3: begin
-			/* Load IR */
-			load_ir = 1;
+		s_replace: begin
+			pmem_read = 1;
 		end
 		
-		decode: /* Do nothing */;
 		
-		s_add: begin
-			/* DR <= SRA + SRB */
-			aluop = alu_add;
-			load_regfile = 1;
-			regfilemux_sel = 0;
-			load_cc = 1;
-		end
-		
-		s_and: begin
-			/* DR <= A & B;*/
-			aluop = alu_and;
-			load_regfile = 1;
-			load_cc = 1;
-		end
-		
-		s_not: begin
-			/* DR <= NOT(A) */
-			aluop = alu_not;
-			load_regfile = 1;
-			load_cc = 1;
-		end
-		
-		s_br: /* do nothing */ ;
-		
-		s_br_taken: begin
-			/* PC <= PC + SEXT(IR[8:0] << 1) */
-			pcmux_sel = 2'b01;		// AW mp2.1 modified
-			load_pc = 1;
-		end
-		
-		s_calc_addr: begin
-			/* MAR <= A + SEXT(IR[5:0] << 1) */
-			alumux_sel = 2'b01;
-			aluop = alu_add;
-			load_mar = 1;
-		end
-		
-		s_ldr1: begin
-			/* MDR <= M[MAR] */
-			mdrmux_sel = 2'b01;
-			load_mdr = 1;
-			mem_read = 1;
-		end
-		
-		s_ldr2: begin
-			/* DR <= MDR */
-			regfilemux_sel = 2'b01;
-			load_regfile = 1;
-			load_cc = 1;
-		end
-		
-		s_str1: begin
-			/* MDR <= SR */
-			storemux_sel = 1'b1;
-			aluop = alu_pass;
-			load_mdr = 1;
-		end
-		
-		s_str2: begin
-			/* M[MAR] <= MDR */
-			mem_write = 1;
-		end
-
-		/* AW mp2.1 added */
-		s_jmp: begin
-			/* PC <= SRA */
-			storemux_sel = 1'b0;
-			pcmux_sel = 2'b10;
-			load_pc = 1;
-		end
-
-		/* AW mp2.1 added */
-		s_lea: begin
-			/* DR <= PC + SEXT(IR[8:0] << 1) */
-			pcmux_sel = 2'b01;
-			regfilemux_sel = 2'b10;
-			load_regfile = 1;
-			load_cc = 1;
-		end
-
-		// AW mp2.2 added
-		s_jsr1: begin
-			/* R7 <= PC */
-			destmux_sel = 1'b1;		// hard wired 111
-			regfilemux_sel = 2'b11;
-			load_regfile = 1;
-		end
-
-		// AW mp2.2 added
-		s_jsr2: begin
-			/* PC <= PC + off11 */
-			pcoffmux_sel = 1'b0;
-			pcmux_sel = 2'b01;
-			load_pc = 1;
-		end
-
-		// AW mp2.2 added
-		s_jsr3: begin
-			/* PC <= BaseR */
-			storemux_sel = 1'b0;
-			pcmux_sel = 2'b10;
-			load_pc = 1;
-		end
-
-		// mp2.2 add
-		s_ldb1: begin
-			// MAR <= BaseR + SEXT(offset6)
-			alumux_sel = 2'b10;
-			aluop = alu_add;
-			marmux_sel = 2'b00;
-			load_mar = 1;
-		end
-
-		// mp2.2 add
-		s_ldb2: begin
-			/* MDR <= M[MAR] */
-			mdrmux_sel = 2'b01;
-			load_mdr = 1;
-			mem_read = 1;
-		end
-
-		// mp2.2 add
-		s_ldb3: begin
-			// DR <= ZEXT(bytemux_out)
-			wdatamux_sel = 1;
-			regfilemux_sel = 2'b01;
-			destmux_sel = 0;
-			load_regfile = 1;
-			load_cc = 1;
-		end
-
-		// mp2.2 add
-		s_ldb4: begin
-			// extra ldb state
-			wdatamux_sel = 1;
-			regfilemux_sel = 2'b01;
-			destmux_sel = 0;
-			load_regfile = 1;
-			load_cc = 1;
-		end
-
-		// mp2.2 add
-		s_ldi1: begin
-			// MAR <= BaseR + SEXT(Offset6)<<1)
-			alumux_sel = 2'b01;
-			aluop = alu_add;
-			marmux_sel = 2'b00;
-			load_mar = 1;
-		end
-
-		// mp2.2 add
-		s_ldi2: begin
-			// MDR <= M[MAR]
-			mdrmux_sel = 2'b01;
-			load_mdr = 1;
-			mem_read = 1;
-		end
-
-		// mp2.2 add
-		s_ldi3: begin
-			// MAR <= MDR
-			marmux_sel = 2'b10;
-			load_mar = 1;
-		end
-
-		// mp2.2 add
-		s_ldi4: begin
-			// MDR <= M[MAR]
-			mdrmux_sel = 2'b01;
-			load_mdr = 1;
-			mem_read = 1;
-		end
-
-		// mp2.2 add
-		s_ldi5: begin
-			// DR <= MDR
-			wdatamux_sel = 0;
-			regfilemux_sel = 2'b01;
-			destmux_sel = 0;
-			load_regfile = 1;
-			load_cc = 1;
-		end
-
-		// 1.2
-		s_trap1: begin
-			// MAR <- ZEXT[IR[7:0]]
-			a_mux_sel = 1'b1;
-			aluop = alu_pass;
-			marmux_sel = 1'b0;
-			load_mar = 1'b1;
-		end
-
-		// 1.2
-		s_trap2: begin
-			// MDR <- M[MAR]
-			// R7 <- PC
-			mdrmux_sel = 2'b01;
-			load_mdr = 1'b1;
-			mem_read = 1;
-			destmux_sel = 1'b1;		// hard wired 111
-			regfilemux_sel = 2'b11;
-			load_regfile = 1;
-		end
-
-		// 1.2
-		s_trap3: begin
-			// PC <- MDR
-			pcmux_sel = 2'b11;
-			load_pc = 1'b1;
-		end
-
-		// 1.2
-		s_shf: begin
-			/* if (D = 0)
-					DR = SR << imm4 (left shift)
-				else
-					if(A == 0)
-						DR = SR >> imm4,0; (right shift logical)
-					else
-						DR = SR >> imm4, SR[15]; (right shift arithmetic)
-				setcc();
-			 */
-			 a_mux_sel = 1'b0;
-			 alumux_sel = 2'b11;
-			 regfilemux_sel = 2'b00;
-			 destmux_sel = 1'b0;
-
-			 if(Dbit == 1'b0)
-			 	aluop = alu_sll;
-			 else
-			 	if(Abit == 1'b0)
-			 		aluop = alu_srl;
-			 	else
-			 		aluop = alu_sra;
-
-			 load_regfile = 1'b1;
-			 load_cc = 1;
-		end
-
-		// 1.2
-		s_stb1: begin
-			/* MAR <= SR1 + SEXT(IR[5:0]) */
-			alumux_sel = 2'b10;
-			aluop = alu_add;
-			load_mar = 1;
-		end
-
-		// 1.2
-		s_stb2: begin
-			// MDR <- {SR[7:0], SR[7:0]}
-			// note that SR is dest
-			storemux_sel = 1'b1;	// data coming from dest (IR[11:9])
-			aluop = alu_pass;
-			mdrmux_sel = 2'b10;
-			load_mdr = 1;
-		end
-
-		// 1.2
-		s_stb3: begin
-			/* M[MAR] <= MDR */
-			mem_write = 1;
-		end
-
-		// 1.2
-		s_sti1: begin
-			// MAR <- BaseR + SEXT(offset6)<<1
-			alumux_sel = 2'b01;
-			aluop = alu_add;
-			load_mar = 1;
-		end
-
-		// 1.2
-		s_sti2: begin
-			// MDR <-M[MAR]
-			mdrmux_sel = 2'b01;
-			load_mdr = 1;
-			mem_read = 1;
-		end
-
-		// 1.2
-		s_sti3: begin
-			// MAR <- MDR
-			marmux_sel = 2'b10;
-			load_mar = 1;
-		end
 		
 		default: /* Do nothing */;
 		
@@ -354,265 +90,37 @@ begin : next_state_logic
      * for transitioning between states */
 	next_states = state;
 	case(state)
-		fetch1: begin
-			next_states = fetch2;
-		end
-		
-		fetch2: begin
-			if(mem_resp == 1'b1)
-				next_states = fetch3;
+		s_hit: begin
+			if(is_hit_out == 0)
+			begin
+				if(dirty_out == 0 || valid_out == 0)
+				begin
+					next_states = s_replace;	// replace
+				end
+				else if(dirty_out == 1 && valid_out == 1)
+				begin
+					next_states = s_write_back;	// write_back
+				end
+			end
 			else
-				next_states = fetch2;
+			begin
+				next_states = s_hit;	// hit
+			end
 		end
 		
-		fetch3: begin
-			next_states = decode;
-		end
-		
-		decode: begin
-			case(opcode)
-				op_add: begin
-					next_states = s_add;
-				end
-
-				op_and: begin
-					next_states = s_and;
-				end
-
-				op_not: begin
-					next_states = s_not;
-				end
-
-				op_ldr: begin
-					next_states = s_calc_addr;
-				end
-
-				op_str: begin
-					next_states = s_calc_addr;
-				end
-
-				op_br: begin
-					next_states = s_br;
-				end
-
-				op_jmp: begin				// AW mp2.1 added	
-					next_states = s_jmp;
-				end
-
-				op_lea: begin				// AW mp2.1 added
-					next_states = s_lea;
-				end
-
-				op_jsr: begin				// AW mp2.2 added
-					next_states = s_jsr1;
-				end
-
-				op_ldb: begin				// mp2.2 added
-					next_states = s_ldb1;
-				end
-
-				op_ldi: begin				// mp2.2
-					next_states = s_ldi1;
-				end
-
-				op_trap: begin				// 1.2
-					next_states = s_trap1;
-				end
-
-				op_shf: begin				// 1.2
-					next_states = s_shf;
-				end
-
-				op_stb: begin				// 1.2
-					next_states = s_stb1;
-				end
-
-				op_sti: begin				// 1.2
-					next_states = s_sti1;
-				end
-
-				default: /* do nothing */ ;
-			endcase
-		end
-		
-		s_add: begin
-			next_states = fetch1;
-		end
-		
-		s_and: begin
-			next_states = fetch1;
-		end
-		
-		s_not: begin
-			next_states = fetch1;
-		end
-		
-		s_br: begin
-			if(branch_enable == 1'b1)
-				next_states = s_br_taken;
+		s_write_back: begin
+			if(pmem_resp == 0)
+				next_states = s_write_back;
 			else
-				next_states = fetch1;
+				next_states = s_replace;
 		end
 		
-		s_br_taken: begin
-			next_states = fetch1;
-		end
-		
-		s_calc_addr: begin
-			if(opcode == op_ldr)
-				next_states = s_ldr1;
-			else if(opcode == op_str)
-				next_states = s_str1;
+		s_replace: begin
+			if(pmem_resp == 0)
+				next_states = s_replace;
 			else
-				/* do nothing */;
-		end
-		
-		s_ldr1: begin
-			if(mem_resp == 1'b1)
-				next_states = s_ldr2;
-		end
-		
-		s_ldr2: begin
-			next_states = fetch1;
-		end
-		
-		s_str1: begin
-			next_states = s_str2;
-		end
-		
-		s_str2: begin
-			if(mem_resp == 1'b1)
-				next_states = fetch1;
-		end
-
-		/* AW mp2.1 added */
-		s_jmp: begin
-			next_states = fetch1;
-		end
-
-		/* AW mp2.1 added */
-		s_lea: begin
-			next_states = fetch1;
-		end
-
-		// AW mp2.2 added
-		s_jsr1: begin
-			if(ir11 == 1'b1)
-				next_states = s_jsr2;
-			else
-				next_states = s_jsr3;
-		end
-
-		// AW mp2.2 added
-		s_jsr2: begin
-			next_states = fetch1;
-		end
-
-		// AW mp2.2 added
-		s_jsr3: begin
-			next_states = fetch1;
-		end
-
-		// mp2.2 add
-		s_ldb1: begin
-			next_states = s_ldb2;
-		end
-
-		// mp2.2 add
-		s_ldb2: begin
-			if(mem_resp == 1'b1)
-				next_states = s_ldb3;
-		end
-
-		// mp2.2 add
-		s_ldb3: begin
-			next_states = s_ldb4;
-		end
-
-		// mp2.2 add
-		s_ldb4: begin
-			next_states = fetch1;
-		end
-
-		// mp2.2
-		s_ldi1: begin
-			next_states = s_ldi2;
-		end
-
-		// mp2.2
-		s_ldi2: begin
-			if(mem_resp == 1'b1)
-				next_states = s_ldi3;
-		end
-
-		// mp2.2
-		s_ldi3: begin
-			next_states = s_ldi4;
-		end
-
-		// mp2.2
-		s_ldi4: begin
-			if(mem_resp == 1'b1)
-				next_states = s_ldi5;
-		end
-
-		// mp2.2
-		s_ldi5: begin
-			next_states = fetch1;
-		end
-
-		// 1.2
-		s_trap1: begin
-			next_states = s_trap2;
-		end
-
-		// 1.2
-		s_trap2: begin
-			if(mem_resp == 1'b1)
-				next_states = s_trap3;
-		end
-
-		// 1.2
-		s_trap3: begin
-			next_states = fetch1;
-		end
-
-		// 1.2
-		s_shf: begin
-			next_states = fetch1;
-		end
-
-		// 1.2
-		s_stb1: begin
-			next_states = s_stb2;
-		end
-
-		// 1.2
-		s_stb2: begin
-			next_states = s_stb3;
-		end
-
-		// 1.2
-		s_stb3: begin
-			if(mem_resp == 1'b1)
-				next_states = fetch1;
-		end
-
-		// 1.2
-		s_sti1: begin
-			next_states = s_sti2;
-		end
-
-		// 1.2
-		s_sti2: begin
-			if(mem_resp == 1'b1)
-				next_states = s_sti3;
-		end
-
-		// 1.2
-		s_sti3: begin
-			next_states = s_str1;		// trying to reuse state
-		end
+				next_states = s_hit;
+		end		
 		
 		default: /* do nothing */;
 		
@@ -625,4 +133,4 @@ begin: next_state_assignment
 	 state <= next_states;
 end
 
-endmodule : control
+endmodule : cache_control
