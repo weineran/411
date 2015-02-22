@@ -53,7 +53,7 @@ cache the_cache
 	/* outputs */
 	.mem_resp(mem_resp),
 	.mem_rdata(mem_rdata),
-	.pmem_address(mem_address),
+	.pmem_address(?????),
 	.pmem_wdata(pmem_wdata),
 	.pmem_write(pmem_write),
 	.pmem_read(pmem_read)

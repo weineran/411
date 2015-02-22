@@ -1,0 +1,22 @@
+// todo.txt
+
+inputs from cpu to cache:
+	-mem_address (16) - offset should be 3:1 not 2:0? this will affect index and tag as well
+	-mem_wdata (16)
+	-mem_read (1)
+	-mem_write (1)
+	-mem_byte_enable (2) - need to manipulate these in the STB instr?
+
+outputs from cache to cpu:
+	-mem_rdata (16) - DONE
+	-mem_resp (1) - state machine
+
+outputs from cache to pmem:
+	-pmem_address (16) - need to choose lru tag, concatenate index and offset
+	-pmem_wdata (128) - choose lru data
+	-pmem_read (1) - state machine
+	-pmem_write (1) - state machine
+
+inputs from pmem to cache:
+	-pmem_rdata (128) - DONE
+	-pmem_resp (1) - state machine
