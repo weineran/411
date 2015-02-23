@@ -1,7 +1,7 @@
 package lc3b_types;
 
 typedef logic [127:0] lc3b_line;        // 2.2 added
-typedef logic [9:0] lc3b_tag;           // 2.2
+typedef logic [8:0] lc3b_tag;           // 2.2
 typedef logic [2:0] lc3b_c_index;       // 2.2
 typedef logic [2:0] lc3b_c_offset;       // 2.2
 typedef logic [15:0] lc3b_word;

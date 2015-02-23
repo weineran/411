@@ -17,9 +17,9 @@ module mp2
 );
 
 /* declare internal signals */
-	 lc3b_word mem_rdata, mem_wdata, mem_address
-	 logic mem_resp, mem_read, mem_write,
-	 lc3b_mem_wmask mem_byte_enable
+	 lc3b_word mem_rdata, mem_wdata, mem_address;
+	 logic mem_resp, mem_read, mem_write;
+	 lc3b_mem_wmask mem_byte_enable;
 
 /* Instantiate MP 2 top level blocks here */
 
@@ -53,7 +53,7 @@ cache the_cache
 	/* outputs */
 	.mem_resp(mem_resp),
 	.mem_rdata(mem_rdata),
-	.pmem_address(?????),
+	.pmem_address(pmem_address),
 	.pmem_wdata(pmem_wdata),
 	.pmem_write(pmem_write),
 	.pmem_read(pmem_read)

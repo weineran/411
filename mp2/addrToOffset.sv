@@ -8,7 +8,7 @@ module addrToOffset
 
 always_comb
 begin
-	c_offset = address[2:0];
+	c_offset = address[3:1];
 end
 	
 endmodule : addrToOffset

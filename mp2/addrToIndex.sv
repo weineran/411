@@ -8,7 +8,7 @@ module addrToIndex
 
 always_comb
 begin
-	c_index = address[5:3];
+	c_index = address[6:4];
 end
 	
 endmodule : addrToIndex

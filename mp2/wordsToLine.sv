@@ -9,7 +9,7 @@ module wordsToLine
 always_comb
 begin
 	line[127:112] = word7;
-	line[11:96] = word6;
+	line[111:96] = word6;
 	line[95:80] = word5;
 	line[79:64] = word4;
 	line[63:48] = word3;

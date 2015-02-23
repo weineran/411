@@ -8,76 +8,79 @@ module cache
 (
     input clk,
 
-    /* Memory signals */
-    input mem_resp,
-    input lc3b_word mem_rdata,
-    output mem_read,
-    output mem_write,
-    output lc3b_mem_wmask mem_byte_enable,
-    output lc3b_word mem_address,
-    output lc3b_word mem_wdata	 
+    /* input from CPU */
+     input mem_read, mem_write,
+     input lc3b_mem_wmask mem_byte_enable,
+     input lc3b_word mem_address, mem_wdata,
+
+    /* output to CPU */
+     output lc3b_word mem_rdata,
+     output mem_resp,
+    
+    /* input from pmem */
+     input pmem_resp,
+     input lc3b_line pmem_rdata,
+
+    /* output to pmem */
+     output lc3b_word pmem_address,
+     output lc3b_line pmem_wdata,
+     output pmem_read, pmem_write
 );
 
 /* declare internal signals */
-	 logic [1:0] c_pcmux_sel;
-	 logic c_storemux_sel;
-	 logic c_pcoffmux_sel;		// added mp2.2
-	 logic c_destmux_sel;		// added mp2.2
-	 logic c_wdatamux_sel;		// added mp2.2
-	 logic [1:0] c_marmux_sel;
-	 logic [1:0] c_mdrmux_sel;	// 1.2 mod
-	 logic [1:0] c_regfilemux_sel;
-	 logic [1:0] c_alumux_sel;		// mp2.2 mod
-	 logic c_a_mux_sel;				// 1.2
-	 logic c_load_regfile;
-	 logic c_load_pc;
-	 logic c_load_ir;
-	 logic c_load_mar;
-	 logic c_load_mdr;
-	 logic c_load_cc;
-	 lc3b_aluop c_aluop;
-	 lc3b_opcode dp_opcode_out;
-	 logic dp_branch_enable;
-	 logic dp_ir11;				// added mp2.2
-	 logic dp_Abit;			// 1.2
-	 logic dp_Dbit;			// 1.2
+	 logic w_Data_en, w_Tag_en, w_Valid_en, w_Dirty_en, w_LRU_en;
+	 logic is_hit_out, hit_sel_out, dirty_out, valid_out;
+	 logic Dout_LRU, Din_LRU, Din_Valid, Din_Dirty;
 
 /* Instantiate MP 0 top level blocks here */
 
-cpu the_cpu
+cache_datapath the_c_datapath
 (
-	// inputs
 	.clk,
-	.mem_rdata(mem_rdata),
-	.mem_resp(mem_resp),
 	
-	/* outputs */
-	.mem_address(mem_address),
-	.mem_wdata(mem_wdata),
-	.mem_read(mem_read),
-	.mem_write(mem_write),
-	.mem_byte_enable(mem_byte_enable)
+	// inputs from cpu
+	.mem_address(mem_address), .mem_wdata(mem_wdata), .mem_byte_enable(mem_byte_enable),
+
+	// inputs from control
+	.w_Data_en(w_Data_en), .w_Tag_en(w_Tag_en), .w_Valid_en(w_Valid_en), .w_Dirty_en(w_Dirty_en), .w_LRU_en(w_LRU_en), .Din_LRU(Din_LRU), .pmem_read(pmem_read),
+	.Din_Valid(Din_Valid), .Din_Dirty(Din_Dirty),
+
+	// inputs from pmem
+	.pmem_rdata(pmem_rdata),
+
+	// outputs to cpu
+	.mem_rdata(mem_rdata),
+
+	// outputs to control
+	.is_hit_out(is_hit_out), .hit_sel_out(hit_sel_out), .dirty_out(dirty_out), .valid_out(valid_out), .Dout_LRU(Dout_LRU),
+
+	// outputs to pmem
+	.pmem_address(pmem_address), .pmem_wdata(pmem_wdata)
+
 );
 
-cache the_cache
+cache_control the_c_control
 (
-	/* inputs */
 	.clk,
-	.mem_address(mem_address),
-	.mem_wdata(mem_wdata),
-	.mem_read(mem_read),
-	.mem_write(mem_write),
-	.mem_byte_enable(mem_byte_enable),
+
+	// inputs from cpu
+	.mem_read(mem_read), .mem_write(mem_write),
+
+	// inputs from datapath
+	.is_hit_out(is_hit_out), .hit_sel_out(hit_sel_out), .dirty_out(dirty_out), .valid_out(valid_out), .Dout_LRU(Dout_LRU),
+
+	// inputs from pmem
 	.pmem_resp(pmem_resp),
-	.pmem_rdata(pmem_rdata),
-	
-	/* outputs */
+
+	// outputs to cpu
 	.mem_resp(mem_resp),
-	.mem_rdata(mem_rdata),
-	.pmem_address(mem_address),
-	.pmem_wdata(pmem_wdata),
-	.pmem_write(pmem_write),
-	.pmem_read(pmem_read)
+
+	// outputs to datapath
+	.w_Data_en(w_Data_en), .w_Tag_en(w_Tag_en), .w_Valid_en(w_Valid_en), .w_Dirty_en(w_Dirty_en), .w_LRU_en(w_LRU_en), .Din_LRU(Din_LRU),
+	.Din_Valid(Din_Valid), .Din_Dirty(Din_Dirty),
+
+	// outputs to pmem
+	.pmem_read(pmem_read), .pmem_write(pmem_write)
 );
 
 endmodule : cache

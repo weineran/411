@@ -8,7 +8,7 @@ module control
 	 /* Datapath controls */
 	 input lc3b_opcode opcode,
 	 input logic branch_enable,
-	 input logic ir11, Abit, Dbit,				// AW mp2.2 added
+	 input logic ir11, Abit, Dbit, addrBit,				// AW mp2.2 added
 	 output logic load_pc,
 	 output logic load_ir,
 	 output logic load_regfile,
@@ -373,6 +373,10 @@ begin : state_actions
 		s_stb2: begin
 			// MDR <- {SR[7:0], SR[7:0]}
 			// note that SR is dest
+			if(addrBit)
+				mem_byte_enable = 2'b10;
+			else
+				mem_byte_enable = 2'b01;
 			storemux_sel = 1'b1;	// data coming from dest (IR[11:9])
 			aluop = alu_pass;
 			mdrmux_sel = 2'b10;

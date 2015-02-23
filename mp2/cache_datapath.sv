@@ -9,43 +9,51 @@ module cache_datapath
 (
     input clk,
 
-    /* control signals */
-    input [1:0] w_Data, w_Tag, w_Valid, w_Dirty, 		// 01 writes to array 0; 10 writes to array 1
-    input  w_LRU,				// only 1 array, so just 1 bit
-
-    /* declare more ports here */
+    /* input from CPU */
 	 input lc3b_word mem_address,
 	 input lc3b_word mem_wdata,
-	 input lc3b_line pmem_rdata,
 	 input lc3b_mem_wmask mem_byte_enable,
-	 input logic cache_write,				// an enabling bit sent from cache_control
+
+    /* input from control */
+     input w_Data_en, w_Tag_en, w_Valid_en, w_Dirty_en, w_LRU_en,
+     input Din_LRU, pmem_read,
+     input Din_Valid,						/* 2.2 data input for Valid arrays; 1 means valid, 0 means no; both arrays can share same
+											 * data input b/c we have 2 write bits, allowing us to choose which array to write to
+											 */
+	 input Din_Dirty,						// 2.2 data input for Dirty arrays; 1 means dirty, 0 means no; again, can share data input
+
+	/* input from pmem */
+	 input lc3b_line pmem_rdata,
+
+	/* output to CPU */
 	 output lc3b_word mem_rdata,
+
+	/* output to control */
+     output logic is_hit_out, hit_sel_out, dirty_out, valid_out,
+     output logic Dout_LRU,						
+
+	/* output to pmem */
 	 output lc3b_word pmem_address,
-	 output lc3b_line pmem_wdata,
-	 output logic pmem_read, pmem_write,
-	 output logic is_hit_out, hit_sel_out,
-	 output logic dirty_out, valid_out
-	 
+	 output lc3b_line pmem_wdata
 );
 
 /* declare internal signals */
-lc3b_line Din_Data, Dout_Data0, Dout_Data1;		// 2.2 data input and output for Data arrays
+lc3b_line data_in, Din_Data, Dout_Data0, Dout_Data1;		// 2.2 data input and output for Data arrays
 lc3b_line hit_data;								// output from data_mux
-lc3b_tag Din_Tag, Dout_Tag0, Dout_Tag1;			// 2.2 data input and output for Tag arrays
-logic Din_Valid;								/* 2.2 data input for Valid arrays; 1 means valid, 0 means no; both arrays can share same
-												 * data input b/c we have 2 write bits, allowing us to choose which array to write to
-												 */
-logic Din_Dirty;								// 2.2 data input for Dirty arrays; 1 means dirty, 0 means no; again, can share data input
-logic Din_LRU, Dout_LRU;						// 2.2 data input and output for LRU array; 1 means array_1 is LRU, 0 means array_0 is LRU
-logic Dout_Dirty0, Dout_Dirty1,
-logic Dout_Valid0, Dout_Valid1,
+lc3b_tag Din_Tag, Dout_Tag0, Dout_Tag1, tag_out;			// 2.2 data input and output for Tag arrays
+logic Dout_Dirty0, Dout_Dirty1;
+logic Dout_Valid0, Dout_Valid1;
+logic write_sel;								// LRU if miss; hit_sel if hit
 lc3b_c_index c_index;							// 2.2 the index into the cache
 lc3b_word word7, word6, word5, word4;			// outputs from line_to_words
 lc3b_word word3, word2, word1, word0;
+lc3b_word word_in;
 lc3b_word word7_in, word6_in, word5_in, word4_in;	// inputs to words_to_line
 lc3b_word word3_in, word2_in, word1_in, word0_in;
 lc3b_c_offset c_offset;							// offset into a line in the cache
 logic [7:0] decoder_out;
+lc3b_byte rdata_byte0, rdata_byte1, wdata_byte0, wdata_byte1, byte0_in, byte1_in;
+logic [1:0] w_Data, w_Tag, w_Valid, w_Dirty;	// write decoder outputs
 
 
 // addrToIndex
@@ -129,8 +137,44 @@ mux8 word_mux
 decoder8 word_decoder
 (
 	.sel(c_offset),
-	.enable(cache_write),
+	.enable(1'b1),
 	.out(decoder_out)
+);
+
+mux2 #(.width(1)) write_sel_mux
+(
+	.sel(is_hit_out),
+	.a(Dout_LRU), .b(hit_sel_out),
+	.f(write_sel)
+);
+
+// write decoders
+decoder2 w_data_decoder
+(
+	.sel(write_sel),
+	.enable(w_Data_en),
+	.out(w_Data)
+);
+
+decoder2 w_tag_decoder
+(
+	.sel(write_sel),
+	.enable(w_Tag_en),
+	.out(w_Tag)
+);
+
+decoder2 w_valid_decoder
+(
+	.sel(write_sel),
+	.enable(w_Valid_en),
+	.out(w_Valid)
+);
+
+decoder2 w_dirty_decoder
+(
+	.sel(write_sel),
+	.enable(w_Dirty_en),
+	.out(w_Dirty)
 );
 
 // word_in muxes
@@ -185,7 +229,7 @@ mux2 word6_in_mux
 
 mux2 word7_in_mux
 (
-	.sel(decoder_out[7),
+	.sel(decoder_out[7]),
 	.a(word7), .b(word_in),
 	.f(word7_in)
 );
@@ -209,13 +253,13 @@ mux2 #(.width(128)) data_in_mux
 wordToBytes rdata_to_bytes
 (
 	.word_in(mem_rdata),
-	.byte0_out(rdata_byte0), byte1_out(rdata_byte1)
+	.byte0_out(rdata_byte0), .byte1_out(rdata_byte1)
 );
 
 wordToBytes wdata_to_bytes
 (
 	.word_in(mem_wdata),
-	.byte0_out(wdata_byte0), byte1_out(wdata_byte1)
+	.byte0_out(wdata_byte0), .byte1_out(wdata_byte1)
 );
 
 // mask muxes
@@ -231,6 +275,26 @@ mux2 #(.width(8)) mask0_mux
 	.sel(mem_byte_enable[0]),
 	.a(rdata_byte0), .b(wdata_byte0),
 	.f(byte0_in)
+);
+
+mux2 #(.width(9)) tag_out_mux
+(
+	.sel(Dout_LRU),
+	.a(Dout_Tag0), .b(Dout_Tag1),
+	.f(tag_out)
+);
+
+calcPmemAddr calc_pmem_addr
+(
+	.c_tag(tag_out), .c_index(c_index),
+	.pmem_address(pmem_address)
+);
+
+mux2 #(.width(128)) to_pmem_mux
+(
+	.sel(Dout_LRU),
+	.a(Dout_Data0), .b(Dout_Data1),
+	.f(pmem_wdata)
 );
 
 // bytes_to_word
@@ -261,7 +325,7 @@ array data_1
 );
 
 // tag_0 Array
-array #(.width(10)) tag_0
+array #(.width(9)) tag_0
 (
 	.clk(clk),
 	.write(w_Tag[0]),
@@ -271,7 +335,7 @@ array #(.width(10)) tag_0
 );
 
 // tag_1 Array
-array #(.width(10)) tag_1
+array #(.width(9)) tag_1
 (
 	.clk(clk),
 	.write(w_Tag[1]),
@@ -324,7 +388,7 @@ array #(.width(1)) dirty_1
 array #(.width(1)) lru
 (
 	.clk(clk),
-	.write(w_LRU),
+	.write(w_LRU_en),
 	.index(c_index),
 	.datain(Din_LRU),
 	.dataout(Dout_LRU)

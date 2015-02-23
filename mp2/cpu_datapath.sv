@@ -29,7 +29,7 @@ module datapath
 	 output lc3b_word mem_address,
 	 output lc3b_word mem_wdata,
 	 output logic branch_enable,
-	 output logic ir11, Abit, Dbit 				// AW mp2.2 added
+	 output logic ir11, Abit, Dbit, addrBit 				// AW mp2.2 added
 	 
 );
 
@@ -86,6 +86,12 @@ mux4 pcmux
     .c(regfile_sr1_out),	// AW mp2.1 added
 	.d(mem_wdata),			// mp2.1 added; 1.2 modified
     .f(pcmux_out)
+);
+
+addrLowBit addr_low_bit
+(
+	.address(mem_address),
+	.low_bit(addrBit)
 );
 
 mux2 #(.width(3)) storemux

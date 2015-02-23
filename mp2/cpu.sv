@@ -37,6 +37,7 @@ module cpu
 	 logic dp_ir11;				// added mp2.2
 	 logic dp_Abit;			// 1.2
 	 logic dp_Dbit;			// 1.2
+	 logic addrBit;
 
 /* Instantiate MP 0 top level blocks here */
 
@@ -69,6 +70,7 @@ datapath the_datapath
 	.branch_enable(dp_branch_enable),
 	.ir11(dp_ir11),						// added mp2.2
 	.Abit(dp_Abit),		// 1.2
+	.addrBit(addrBit),
 	.Dbit(dp_Dbit)		// 1.2
 );
 
@@ -82,6 +84,7 @@ control the_control
 	.Abit(dp_Abit),					// 1.2
 	.Dbit(dp_Dbit),					// 1.2
 	.mem_resp(mem_resp),
+	.addrBit(addrBit),
 	
 	/* outputs */
 	.load_pc(c_load_pc),

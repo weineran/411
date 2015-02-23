@@ -8,7 +8,7 @@ module addrToTag
 
 always_comb
 begin
-	c_tag = address[15:6];
+	c_tag = address[15:7];
 end
 	
 endmodule : addrToTag
