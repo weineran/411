@@ -97,7 +97,7 @@ mux2 #(.width(128)) data_mux
 
 mux2 #(.width(1)) dirty_mux
 (
-	.sel(hit_sel_out),
+	.sel(write_sel),
 	.a(Dout_Dirty0),
 	.b(Dout_Dirty1),
 	.f(dirty_out)
@@ -105,7 +105,7 @@ mux2 #(.width(1)) dirty_mux
 
 mux2 #(.width(1)) valid_mux
 (
-	.sel(hit_sel_out),
+	.sel(write_sel),
 	.a(Dout_Valid0),
 	.b(Dout_Valid1),
 	.f(valid_out)

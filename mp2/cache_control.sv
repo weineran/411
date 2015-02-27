@@ -57,30 +57,33 @@ begin : state_actions
     /*********************** Actions for each state *********************************************/
 	 case(state)
 		s_hit: begin
-			if(is_hit_out == 1 && valid_out == 1)
+			if(mem_read == 1 || mem_write == 1)
 			begin
-				if(mem_read == 1)
+				if(is_hit_out == 1 && valid_out == 1)
 				begin
-					mem_resp = 1;		// READ HIT: hit = 1, mem_read = 1, valid = 1; send data to cpu
-				end
-				else if(mem_write == 1)
-				begin
-					w_Data_en = 1;	// WRITE HIT: hit = 1, mem_write = 1, valid = 1; write data to data array
-					mem_resp = 1;
-				end
+					if(mem_read == 1)
+					begin
+						mem_resp = 1;		// READ HIT: hit = 1, mem_read = 1, valid = 1; send data to cpu
+					end
+					else if(mem_write == 1)
+					begin
+						w_Data_en = 1;	// WRITE HIT: hit = 1, mem_write = 1, valid = 1; write data to data array
+						mem_resp = 1;
+					end
 
-				Din_LRU = hit_sel_out;	// update LRU on either READ HIT and WRITE HIT
-				w_LRU_en = 1;
-			end
-			else
-			begin
-				if(dirty_out == 0)
-				begin
-					;	// replace
+					Din_LRU = ~hit_sel_out;	// update LRU on either READ HIT and WRITE HIT
+					w_LRU_en = 1;
 				end
-				else if(valid_out == 1)
+				else
 				begin
-					;	// write_back
+					if(dirty_out == 0)
+					begin
+						;	// replace
+					end
+					else if(valid_out == 1)
+					begin
+						;	// write_back
+					end
 				end
 			end
 		end
@@ -104,7 +107,7 @@ begin : state_actions
 			w_Dirty_en = 1;
 			Din_Valid = 1;
 			w_Valid_en = 1;
-			w_Data_en = 1;
+			w_Data_en = pmem_resp;
 			w_Tag_en = 1;
 		end
 		
@@ -123,21 +126,26 @@ begin : next_state_logic
 	next_states = state;
 	case(state)
 		s_hit: begin
-			if(is_hit_out == 1 && valid_out == 1)
+			if(mem_read == 1 || mem_write == 1)
 			begin
-				next_states = s_hit;
+				if(is_hit_out == 1 && valid_out == 1)
+				begin
+					next_states = s_hit;
+				end
+				else
+				begin
+					if(dirty_out == 0)
+					begin
+						next_states = s_replace;	// replace
+					end
+					else if(valid_out == 1)
+					begin
+						next_states = s_write_back;	// write_back
+					end
+				end
 			end
 			else
-			begin
-				if(dirty_out == 0)
-				begin
-					next_states = s_replace;	// replace
-				end
-				else if(valid_out == 1)
-				begin
-					next_states = s_write_back;	// write_back
-				end
-			end
+				next_states = s_hit;
 		end
 		
 		s_write_back: begin
